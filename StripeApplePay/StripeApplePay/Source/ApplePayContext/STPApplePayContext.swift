@@ -146,7 +146,7 @@ public class STPApplePayContext: NSObject, PKPaymentAuthorizationControllerDeleg
     @available(iOSApplicationExtension, unavailable)
     @available(macCatalystApplicationExtension, unavailable)
     @objc(presentApplePayWithCompletion:)
-    public func presentApplePay(completion: STPVoidBlock? = nil) {
+    public func presentApplePay(completion: STPBoolBlock? = nil) {
         #if os(visionOS)
         // This isn't great: We should encourage the use of presentApplePay(from window:) instead.
         let windows = UIApplication.shared.connectedScenes
@@ -166,7 +166,7 @@ public class STPApplePayContext: NSObject, PKPaymentAuthorizationControllerDeleg
     ///   - window:                   The UIWindow to host the Apple Pay sheet
     ///   - completion:               Called after the Apple Pay sheet is presented
     @objc(presentApplePayFromWindow:completion:)
-    public func presentApplePay(from window: UIWindow?, completion: STPVoidBlock? = nil) {
+    public func presentApplePay(from window: UIWindow?, completion: STPBoolBlock? = nil) {
         presentationWindow = window
         guard !didPresentApplePay, let applePayController = self.authorizationController else {
             assert(
@@ -186,9 +186,13 @@ public class STPApplePayContext: NSObject, PKPaymentAuthorizationControllerDeleg
             .OBJC_ASSOCIATION_RETAIN_NONATOMIC
         )
 
-        applePayController.present { (_) in
+        applePayController.present { [weak self] presented in
             DispatchQueue.main.async {
-                completion?()
+                completion?(presented)
+                if !presented {
+                    self?.didPresentApplePay = false
+                    self?._end()
+                }
             }
         }
     }
@@ -207,8 +211,7 @@ public class STPApplePayContext: NSObject, PKPaymentAuthorizationControllerDeleg
         renamed: "presentApplePay(completion:)"
     )
     public func presentApplePay(
-        on viewController: UIViewController,
-        completion: STPVoidBlock? = nil
+        on viewController: UIViewController, completion: STPBoolBlock? = nil
     ) {
         let window = viewController.viewIfLoaded?.window
         presentApplePay(from: window, completion: completion)
